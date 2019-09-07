@@ -81,7 +81,7 @@ def tex_coords(top, bottom, side):
     return result
 
 
-TEXTURE_PATH = 'texture.png'
+TEXTURE_PATH = 'minecraftControl/texture.png'
 
 GRASS = tex_coords((1, 0), (0, 1), (0, 0))
 SAND = tex_coords((1, 1), (1, 1), (1, 1))
@@ -799,10 +799,12 @@ class Window(pyglet.window.Window):
 
         # Vehicle movement and collision detection
         self.model.vehicle.update(dt)
-        x,y,z = self.model.vehicle.position
+        x,y,z = self.model.vehicle.get_camera_position()
         x,y,z = self.collide((x,y,z),1)
-        self.model.vehicle.position = np.array([x,y,z])
-        
+        self.model.vehicle.set_camera_position(np.array([x,y,z]))
+        #self.model.vehicle.camera_position = np.array([x,y,z])
+        if self.model.vehicle.Done:
+            self.close()
 
     def collide(self, position, height):
         """ Checks to see if the player at the given `position` and `height`
@@ -1114,8 +1116,10 @@ def carMaze(controller=None):
 
 
     
-def ballSmall(controller=None):
-    vehicle = vh.rollingSphere((0,-1,0),.4,VEHICLE_SPEED,controller=controller)
+def ballSmall(controller=None,x0 = np.zeros(4)):
+    pos = x0[:2]
+    vel = x0[2:]
+    vehicle = vh.rollingSphere(pos,vel,.4,VEHICLE_SPEED,controller=controller)
     #print(vehicle.velocity)
     #print(vehicle.controller(0,0,0))
     window = Window(position=(0,3,0),flying=True,layout=smallLayout,
@@ -1129,13 +1133,15 @@ def ballSmall(controller=None):
     pyglet.app.run()
     Traj = np.array(vehicle.Traj)
     Time = np.array(vehicle.Time)
-    plt.plot(Time,Traj)
-    plt.xlabel('Time',fontsize=16)
-    plt.ylabel('Position',fontsize=16)
+    del window
+    #plt.plot(Time,Traj)
+    #plt.xlabel('Time',fontsize=16)
+    #plt.ylabel('Position',fontsize=16)
 
+    return Time,Traj
 
 def carSmall(controller=None):
-    vehicle = vh.car((0,-1,0),np.pi,1.,VEHICLE_SPEED,controller=controller)
+    vehicle = vh.car((0,0),np.pi,1.,VEHICLE_SPEED,controller=controller)
     window = Window(position=(0,3,0),flying=True,
                     layout=smallLayout,
                     vehicle = vehicle,

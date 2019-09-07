@@ -4,10 +4,12 @@ import scipy.linalg as la
 import pyglet as pg
 from pyglet.gl import *
 from pyglet.window import key, mouse
+import minecraftControl.controllers as ctrl
 
 class vehicle:
     def __init__(self):
-        pass
+        self.Time = [0.]
+        self.Done = False
 
     def on_key_press(self,symbol,modifiers):
         pass
@@ -19,6 +21,12 @@ class vehicle:
         pass
 
     def on_key_release(self,symbol,modifiers):
+        pass
+
+    def get_camera_position(self):
+        return np.zeros(3)
+
+    def set_camera_position(self,x):
         pass
 
 ## Rolling Sphere ## 
@@ -89,8 +97,8 @@ sphereVertsColors = 60 * np.ones((2+numPrimes*numMeridians,3),dtype=int)
 sphereVertsColors[:,2] = rnd.randint(0,256,size=len(sphereVertsColors))
 sphereVertsColors = sphereVertsColors.flatten()
 
-class rollingSphere:
-    def __init__(self,position,radius,SPEED,controller=None):
+class rollingSphere(vehicle):
+    def __init__(self,position,velocity,radius,SPEED,controller=None):
         self.R = np.eye(3)
         self.position = np.array(position)
         self.vertexColors = sphereVertsColors
@@ -98,29 +106,45 @@ class rollingSphere:
         self.Seq = sphere_sequence()
         # Assuming that y velocity is always zero
         # Just using a normalized velocity
-        self.velocity = np.zeros(3)
+        self.velocity = np.array(velocity)
         self.SPEED = SPEED
         self.MAXSPEED = 2 # Really the ratio to the max speed
         if controller is None:
-            class nullController:
+            class nullController(ctrl.controller):
                 def __init__(self):
-                    pass
-                def update(self,measurement):
-                    pass
+                    super().__init__()
                 def value(self):
                     return np.zeros(2)
             controller = nullController()
         self.controller = controller
 
         self.Time = [0.]
-        self.v_traj = [np.array([position[0],position[2]])]
+        self.x = np.hstack([self.position,self.velocity])
+        self.Traj = [self.x]
 
+        super().__init__()
+
+    def worldToCameraPos(self,x):
+        """
+        Change coordinates from 2D world frame to 3D camera frame
+        """
+        return np.array([-x[0],-1,x[1]])
+
+    def worldToCameraVel(self,v):
+        return np.array([-v[0],0,v[1]])
+
+    def get_camera_position(self):
+        return self.worldToCameraPos(self.position)
+    
+    def set_camera_position(self,x):
+        self.position = np.array([-x[0],x[2]])
+    
     def get_vertices(self):
-        x,y,z = self.position
+        camPos = self.worldToCameraPos(self.position)
         V = sphere_vertices(0,0,0,self.radius)
         VR = V@self.R.T
         
-        return VR + np.outer(np.ones(len(V)),self.position)
+        return VR + np.outer(np.ones(len(V)),camPos)
 
 
     def get_angular_velocity(self):
@@ -128,32 +152,38 @@ class rollingSphere:
                       [0,1,0],
                       [1,0,0]])
 
-        return M@self.velocity*self.SPEED /self.radius
+        v = self.worldToCameraVel(self.velocity)
+
+        return M@v*self.SPEED /self.radius
 
     def update(self,dt):
-        x,y,z = self.position
-        vx,vy,vz = self.velocity
+        #x,y,z = self.position
+        #sphereVertsColorsvx,vy,vz = self.velocity
         # Just controlling 2d, in more normal coordinates
-        measurement = (np.array([-x,z]),np.array([-vx,vz]))
+        measurement = self.x
+        t = self.Time[-1]
         # The archicture assumes we first update the internal variables
-        self.controller.update(measurement)
+        self.controller.update(measurement,t)
+        self.Done = self.controller.Done
         # And then get the value
         dx,dz = self.controller.value()
         #print(dx,dy,dz)
         dy = 0.
-        self.velocity += dt * np.array([-dx,dy,dz])
+        self.velocity += dt * np.array([dx,dz])
         s = la.norm(self.velocity)
         #if s > self.MAXSPEED:
         #    self.velocity = self.MAXSPEED * self.velocity / s
         self.position = self.position + dt * self.velocity * self.SPEED
 
+        
         omega = self.get_angular_velocity()
         Omega = np.cross(omega,np.eye(3))
 
         self.R = la.expm(Omega * dt) @ self.R 
 
+        self.x = np.hstack([self.position,self.velocity])
         self.Time.append(self.Time[-1]+dt)
-        self.Traj.append(np.array([-self.position[0],self.position[2]]))
+        self.Traj.append(self.x)
     def draw(self):
         Verts = self.get_vertices()
         Seq = self.Seq
@@ -166,23 +196,23 @@ class rollingSphere:
 
     def on_key_press(self,symbol,modifiers):
         if symbol == key.LEFT:
-            self.velocity[0] += 1
-        elif symbol == key.RIGHT:
             self.velocity[0] -= 1
+        elif symbol == key.RIGHT:
+            self.velocity[0] += 1
         elif symbol == key.UP:
-            self.velocity[2] += 1
+            self.velocity[1] += 1
         elif symbol == key.DOWN:
-            self.velocity[2] -= 1
+            self.velocity[1] -= 1
 
     def on_key_release(self,symbol,modifiers):
         if symbol == key.LEFT:
-            self.velocity[0] -= 1
-        elif symbol == key.RIGHT:
             self.velocity[0] += 1
+        elif symbol == key.RIGHT:
+            self.velocity[0] -= 1
         elif symbol == key.UP:
-            self.velocity[2] -= 1
+            self.velocity[1] -= 1
         elif symbol == key.DOWN:
-            self.velocity[2] += 1
+            self.velocity[1] += 1
 
 carBotY = -.1
 carMidY = 0.075
@@ -320,7 +350,7 @@ carColors = np.array([[0,0,255],#0
                       [0,0,0],#29
                       [0,0,0],#30
                       [0,0,0]]).flatten()                      
-class car:
+class car(vehicle):
     def __init__(self,position,orientation = np.pi,scale = 1.,
                  SPEED = VEHICLE_SPEED,controller=None):
         self.SPEED = SPEED
@@ -331,11 +361,9 @@ class car:
         self.v = 0
         self.omega = 0.
         if controller is None:
-            class nullController:
+            class nullController(ctrl.controller):
                 def __init__(self):
-                    pass
-                def update(self,measurement):
-                    pass
+                    super().__init__()
                 def value(self):
                     return np.zeros(2)
             self.controller = nullController()
@@ -346,6 +374,7 @@ class car:
         self.ThetaTraj = [np.pi-orientation]
         self.XTraj = [-self.position[0]]
         self.YTraj = [self.position[2]]
+        super().__init__()
     def get_rotation(self):
         theta = self.theta
         R = np.array([[np.cos(theta),0,-np.sin(theta)],
@@ -649,7 +678,6 @@ class quadcopter(vehicle):
         dv = (-np.cross(self.v,self.M * self.v) - self.M * self.g * self.R.T @np.array([0,0,1])+ np.sum(T,axis=1)) / self.M
         self.v += dt * dv
 
-        print(self.v)
         self.Time.append(self.Time[-1] + dt)
         self.v_traj.append(self.v)
 

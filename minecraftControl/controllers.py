@@ -2,7 +2,33 @@ import numpy as np
 import scipy.linalg as la
 
    
+class controller:
+    """
+    This is the base class for controllers
 
+    The methods __init__, update, and value
+
+    can be overridden for various applications
+    """
+    def __init__(self):
+        """
+        This initializes the strategy
+        """
+
+        # Each controller has a flag telling
+        # when the task is completed
+        
+        self.Done = False
+        
+    def update(self,measurement,t):
+        """
+        The update method updates any internal state
+        """
+        pass
+
+    def value(self):
+        return None
+        
 
 class moveSphereTo:
     """
@@ -26,11 +52,12 @@ class moveSphereTo:
         self.velErr = np.zeros(2)
         self.tolerance = tolerance
         
-    def update(self,measurement):
+    def update(self,measurement,t):
         """
 
         """
-        pos,vel = measurement
+        pos = measurement[:2]
+        vel = measurement[2:]
         self.posErr = pos - self.target
         self.velErr = vel
         if la.norm(self.posErr) < self.tolerance:
@@ -52,10 +79,10 @@ class controllerSequence:
         self.index = 0
         self.Done = False
         
-    def update(self,measurement):
+    def update(self,measurement,t):
         if (self.controllers[self.index].Done) and (self.index < self.NumControllers -1):
             self.index += 1
-        self.controllers[self.index].update(measurement)
+        self.controllers[self.index].update(measurement,t)
 
         if (self.index == self.NumControllers - 1) and self.controllers[self.index].Done:
             self.Done = True
@@ -73,7 +100,7 @@ class turnCar:
         self.tol = tolerance
         self.Done = False
         
-    def update(self,measurement):
+    def update(self,measurement,t):
         x,y,theta,v,omega = measurement
         self.posError = ((theta - self.target + np.pi) % (2*np.pi)) - np.pi
         self.velError = omega
@@ -97,7 +124,7 @@ class carForward:
         self.Done = False
         self.goalPosition = None
         self.distance = np.abs(distance)
-    def update(self,measurement):
+    def update(self,measurement,t):
         x,y,theta,v,omega = measurement
         curPos = np.array([x,y])
         if self.goalPosition is None:
@@ -117,4 +144,70 @@ class carForward:
 
     def value(self):
         return np.array([-self.Kp * self.d_err-self.Kd * self.v_err,-self.Kp_ang * self.theta_err - self.Kd_ang*self.omega_err]) 
+
+class timedController(controller):
+    def __init__(self,T):
+        self.T = T
+        self.ind = 0
+        super().__init__()
+    
+    def update(self,measurement,t):
+        
+        # Find the first time index that is at least as large as the current 
+        # time
+        while (self.ind < len(self.T)-1) and (t >= self.T[min([self.ind+1,len(self.T)-1])]):
+            self.ind += 1
+                
+        # If we've reached the end of our input sequence
+        # Stop updating and mark as done
+        if self.ind == len(self.T)-1:
+            self.Done = True
+
+        self.measurement = np.copy(measurement)
+    
+class timedOpenLoopSequence(timedController):
+    """
+    Apply a sequence of actions U a list of times T
+    The sequence is applied in a sample-and-hold manner
+    
+    The lists U and T should have the same length.
+    """
+    def __init__(self,U,T):
+        # Update is always
+        self.U = U
+        super().__init__(T)
+        
+            
+    def value(self):
+        return self.U[self.ind]
+
+class timedAffineSequence(timedController):
+    def __init__(self,Gains,Vecs,T):
+        self.Gains = Gains
+        self.Vecs = Vecs
+        super().__init__(T)
+
+    def value(self):
+        K = self.Gains[self.ind]
+        v = self.Vecs[self.ind]
+        x = self.measurement
+        return K@x + v
+
+class timedFeedbackSequence(timedController):
+    """
+    Apply a sequence of static feedback Laws
+
+    F is a list of static feedback rules
+    T is a list of times that they should be applied
+
+    Each f in F should have the form:
+    action = f(measurement)
+    """
+    def __init__(self,Feedbacks,T):
+        self.Feedbacks = Feedbacks
+        super().__init__(T)
+
+
+    def value(self):
+        return self.Feedbacks[self.ind](self.measurement)
         
