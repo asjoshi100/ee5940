@@ -768,6 +768,7 @@ class Window(pyglet.window.Window):
         for _ in xrange(m):
             #self.model.vehicle.update(dt/m)
             self._update(dt/m)
+            
     def _update(self, dt):
         """ Private implementation of the `update()` method. This is where most
         of the motion logic lives, along with gravity and collision detection.
@@ -1116,7 +1117,7 @@ def carMaze(controller=None):
 
 
     
-def ballSmall(controller=None,x0 = np.zeros(4)):
+def ballSmall(controller=None,x0 = np.zeros(4),plot=True):
     pos = x0[:2]
     vel = x0[2:]
     vehicle = vh.rollingSphere(pos,vel,.4,VEHICLE_SPEED,controller=controller)
@@ -1134,9 +1135,10 @@ def ballSmall(controller=None,x0 = np.zeros(4)):
     Traj = np.array(vehicle.Traj)
     Time = np.array(vehicle.Time)
     del window
-    #plt.plot(Time,Traj)
-    #plt.xlabel('Time',fontsize=16)
-    #plt.ylabel('Position',fontsize=16)
+    if plot:
+        plt.plot(Time,Traj)
+        plt.xlabel('Time',fontsize=16)
+        plt.ylabel('States',fontsize=16)
 
     return Time,Traj
 
