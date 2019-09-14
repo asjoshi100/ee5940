@@ -14,7 +14,7 @@ class vehicle:
     def on_key_press(self,symbol,modifiers):
         pass
 
-    def update(self,dt):
+    def update(self,dt,u=None):
         pass
     
     def draw(self):
@@ -28,6 +28,12 @@ class vehicle:
 
     def set_camera_position(self,x):
         pass
+
+    def set_state(self,x):
+        self.x = x
+
+    def get_reward(self):
+        return 0.
 
 ## Rolling Sphere ## 
 numPrimes = 20
@@ -122,6 +128,8 @@ class rollingSphere(vehicle):
         self.x = np.hstack([self.position,self.velocity])
         self.Traj = [self.x]
 
+        self.reward = -np.inf
+        
         super().__init__()
 
     def worldToCameraPos(self,x):
@@ -156,26 +164,28 @@ class rollingSphere(vehicle):
 
         return M@v*self.SPEED /self.radius
 
-    def update(self,dt):
+    def update(self,dt,u=None):
         #x,y,z = self.position
         #sphereVertsColorsvx,vy,vz = self.velocity
         # Just controlling 2d, in more normal coordinates
         measurement = self.x
         t = self.Time[-1]
-        # The archicture assumes we first update the internal variables
-        self.controller.update(measurement,t)
-        self.Done = self.controller.Done
-        # And then get the value
-        dx,dz = self.controller.value()
-        #print(dx,dy,dz)
-        dy = 0.
-        self.velocity += dt * np.array([dx,dz])
+        if u is None:
+            # The archicture assumes we first update the internal variables
+            self.controller.update(measurement,t)
+            self.Done = self.controller.Done
+            # And then get the value
+            dx,dz = self.controller.value()
+            #print(dx,dy,dz)
+            dy = 0.
+            u = np.array([dx,dz])
+        self.velocity += dt * u 
         s = la.norm(self.velocity)
         #if s > self.MAXSPEED:
         #    self.velocity = self.MAXSPEED * self.velocity / s
         self.position = self.position + dt * self.velocity * self.SPEED
 
-        
+        self.reward = -(la.norm(self.x)+la.norm(u))
         omega = self.get_angular_velocity()
         Omega = np.cross(omega,np.eye(3))
 
@@ -184,6 +194,15 @@ class rollingSphere(vehicle):
         self.x = np.hstack([self.position,self.velocity])
         self.Time.append(self.Time[-1]+dt)
         self.Traj.append(self.x)
+
+    def set_state(self,x):
+        self.position = x[:2]
+        self.velocity = x[2:]
+        self.x = np.copy(x)
+        
+    def get_reward(self):
+        return self.reward
+    
     def draw(self):
         Verts = self.get_vertices()
         Seq = self.Seq
@@ -405,7 +424,7 @@ class car(vehicle):
                                  ('v3f',Verts.flatten()),
                                  ('c3B',colors))
 
-    def update(self,dt):
+    def update(self,dt, u=None):
         #dpos = self.position_change(dt)
         theta = self.theta
         v = self.v
@@ -614,7 +633,7 @@ class quadcopter(vehicle):
 
 
     
-    def update(self,dt):
+    def update(self,dt, u=None):
         # Update the rotation matrix 
 
         # Calculate the rotational change

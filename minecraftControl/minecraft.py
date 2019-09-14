@@ -615,8 +615,7 @@ class Model(object):
 
 class Window(pyglet.window.Window):
 
-    def __init__(self,vehicle=None,position=(0,0,0),rotation=(180,-90),flying=False,
-                 layout = mazeLayout,
+    def __init__(self,model=None,position=(0,0,0),rotation=(180,-90),flying=False,
                  *args, **kwargs):
 
         # The label that is displayed in the top left of the canvas.
@@ -674,7 +673,7 @@ class Window(pyglet.window.Window):
             key._6, key._7, key._8, key._9, key._0]
 
         # Instance of the model that handles the world.
-        self.model = Model(vehicle,layout)
+        self.model = model 
 
                 
         # This call schedules the `update()` method to be called
@@ -746,7 +745,7 @@ class Window(pyglet.window.Window):
             dz = 0.0
         return (dx, dy, dz)
 
-    def update(self, dt):
+    def update(self, dt,u=None):
         """ This method is scheduled to be called repeatedly by the pyglet
         clock.
 
@@ -756,20 +755,16 @@ class Window(pyglet.window.Window):
             The change in time since the last call.
 
         """
-        self.model.process_queue()
-        sector = sectorize(self.position)
-        if sector != self.sector:
-            self.model.change_sectors(self.sector, sector)
-            if self.sector is None:
-                self.model.process_entire_queue()
-            self.sector = sector
         m = 8
         dt = min(dt, 0.2)
         for _ in xrange(m):
             #self.model.vehicle.update(dt/m)
-            self._update(dt/m)
+            self._update(dt/m,u)
             
-    def _update(self, dt):
+
+    
+            
+    def _update(self, dt,u=None):
         """ Private implementation of the `update()` method. This is where most
         of the motion logic lives, along with gravity and collision detection.
 
@@ -799,7 +794,7 @@ class Window(pyglet.window.Window):
         self.position = (x, y, z)
 
         # Vehicle movement and collision detection
-        self.model.vehicle.update(dt)
+        self.model.vehicle.update(dt,u)
         x,y,z = self.model.vehicle.get_camera_position()
         x,y,z = self.collide((x,y,z),1)
         self.model.vehicle.set_camera_position(np.array([x,y,z]))
@@ -1007,6 +1002,15 @@ class Window(pyglet.window.Window):
         """ Called by pyglet to draw the canvas.
 
         """
+
+        self.model.process_queue()
+        sector = sectorize(self.position)
+        if sector != self.sector:
+            self.model.change_sectors(self.sector, sector)
+            if self.sector is None:
+                self.model.process_entire_queue()
+            self.sector = sector
+        
         self.clear()
         self.set_3d()
         glColor3d(1, 1, 1)
