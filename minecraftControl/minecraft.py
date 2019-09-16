@@ -1125,10 +1125,10 @@ def ballSmall(controller=None,x0 = np.zeros(4),plot=True):
     pos = x0[:2]
     vel = x0[2:]
     vehicle = vh.rollingSphere(pos,vel,.4,VEHICLE_SPEED,controller=controller)
+    model = Model(vehicle,smallLayout)
     #print(vehicle.velocity)
     #print(vehicle.controller(0,0,0))
-    window = Window(position=(0,3,0),flying=True,layout=smallLayout,
-                    vehicle=vehicle,
+    window = Window(position=(0,3,0),flying=True,model=model,
                     height=800,width=800, caption='Pyglet',
                     resizable=True)
 
