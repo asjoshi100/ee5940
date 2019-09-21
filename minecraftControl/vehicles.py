@@ -371,8 +371,8 @@ carColors = np.array([[0,0,255],#0
                       [0,0,0]]).flatten()                      
 class car(vehicle):
     def __init__(self,position,orientation = np.pi,scale = 1.,
-                 SPEED = VEHICLE_SPEED,controller=None):
-        self.SPEED = SPEED
+                 gain = 1,controller=None):
+        self.gain = gain
         self.position = np.array(position).squeeze()
         self.theta = orientation
         self.scale = scale
@@ -389,6 +389,7 @@ class car(vehicle):
         else:
             self.controller = controller
 
+        self.x = self.get_state()
         self.Time = [0.]
         self.ThetaTraj = [np.pi-orientation]
         self.XTraj = [-self.position[0]]
@@ -410,11 +411,6 @@ class car(vehicle):
         return V 
 
 
-    def position_change(self,dt):
-        theta = self.theta
-        v = self.v
-        dpos = np.array([np.cos(theta),0,np.sin(theta)])*v*dt*self.SPEED
-        return dpos
     def draw(self):
         Verts = self.get_vertices() 
         Seq = carSeq
@@ -424,27 +420,47 @@ class car(vehicle):
                                  ('v3f',Verts.flatten()),
                                  ('c3B',colors))
 
-    def update(self,dt, u=None):
-        #dpos = self.position_change(dt)
-        theta = self.theta
-        v = self.v
+    def set_state(self,X):
+        self.position[0] = -X[0]
+        self.position[2] = X[1]
+        self.theta = np.pi - X[2]
+        self.v = X[3]
+        self.omega = -X[4]
+        self.x = np.copy(X)
         
+        
+    def get_state(self):
         theta = self.theta
         x,_,y = self.position
         omega = self.omega
-        measurement = (-x,y,np.pi-theta,v,-omega)
-        self.controller.update(measurement)
-        dv,domega = self.controller.value()
-
-
-        self.v += dv
-        self.omega -= domega
         v = self.v
+        measurement = np.array([-x,y,np.pi-theta,v,-omega])
+        return measurement
+
+    def update(self,dt, u=None):
+        #dpos = self.position_change(dt)
         
-        dpos = np.array([np.cos(theta),0,np.sin(theta)])*v*dt*self.SPEED
+        theta = self.theta
+        v = self.v
+
+        if u is None:
+            measurement = self.get_state()
+            self.controller.update(measurement)
+            u = self.controller.value()
+
+
+        dv,domega = u
+
+        self.v += self.gain * dv * dt 
+        self.omega -= self.gain * domega * dt
+        
+        dpos = np.array([np.cos(theta),0,np.sin(theta)])*v*dt
  
-        self.theta = self.theta + dt * self.omega * self.SPEED
+        self.theta = self.theta + dt * self.omega 
         self.position = self.position + dpos
+
+
+        self.x = self.get_state()
         self.Time.append(self.Time[-1]+dt)
         self.ThetaTraj.append(np.pi-self.theta)
         self.XTraj.append(-self.position[0])
@@ -536,8 +552,12 @@ class quadcopter(vehicle):
 
         
         self.dynamicsParameters()
+
+        M = np.diag([1,-1,1,-1])
+
+        self.blade_flip = M
         
-        self.blade_speed = np.array([1,-1,1,-1]) * np.sqrt(self.M * self.g / (self.ct*4))
+        self.blade_speed = M @ np.array([1,1,1,1]) * np.sqrt(self.M * self.g / (self.ct*4))
 
 
         # Body Velocity

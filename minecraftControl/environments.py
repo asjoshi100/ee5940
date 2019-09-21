@@ -5,20 +5,13 @@ import numpy as np
 import numpy.random as rnd
 import minecraftControl.vehicles as vh
 
-class constrainedBall(gym.Env):
-    def __init__(self):
-        pos = np.zeros(2)
-        vel = np.zeros(2)
-        vehicle = vh.rollingSphere(pos,vel,.4,mc.VEHICLE_SPEED,controller=None)
-        self.model = mc.Model(vehicle,mc.smallLayout) 
-        self.vehicle = vehicle
+class minecraftEnvironment(gym.Env):
+    def __init__(self,model,dt):
+
+        self.dt = dt
+        self.model = model 
         self.window = None
-        self.dt = .05
-
-        self.action_space = gym.spaces.Box(low=-1.,high=1.,shape=(2,),dtype=np.float32)
-        xHigh = np.array([2.5,2.5,.4,.4])
-        self.observation_space = gym.spaces.Box(low=-xHigh,high=xHigh,dtype = np.float32)
-
+        self.reset_info()
         self.seed()
 
     def seed(self, seed=None):
@@ -29,15 +22,8 @@ class constrainedBall(gym.Env):
         self.Done = False
         self.info = { 'InputFeasible' : True,
                       'StateFeasible' : True }
-        
-    def initialize_position(self):
-        
-        pos = 5 * (rnd.rand(2) - .5)
-        while np.max(np.abs(pos)) < 1.5:
-            pos = 5 * (rnd.rand(2) - .5)
-        vel = np.zeros(2)
-        self.x0 = np.hstack([pos,vel])
  
+
     def make_window(self):
         window = mc.Window(model=self.model,position=(0,3,0),flying=True,
                            height=800,width=800, caption='Pyglet',
@@ -63,7 +49,6 @@ class constrainedBall(gym.Env):
         measurement = self.get_measurement()
         reward = self.model.vehicle.get_reward()
 
-        measurement = self.get_measurement()
         if not self.observation_space.contains(measurement):
             self.Done = True
             self.info['StateFeasible'] = False
@@ -89,9 +74,74 @@ class constrainedBall(gym.Env):
             self.window.close()
             self.window = None
 
+    def initialize_state(self):
+        # must override this
+        self.x0 = np.zeros_like(self.model.vehicle.x)
+
 
     def reset(self):
-        self.initialize_position()
+        self.initialize_state()
         self.model.vehicle.set_state(self.x0)
         self.reset_info()
         return self.get_measurement()
+
+        
+class constrainedBall(minecraftEnvironment):
+    def __init__(self):
+        pos = np.zeros(2)
+        vel = np.zeros(2)
+        vehicle = vh.rollingSphere(pos,vel,.4,mc.VEHICLE_SPEED,controller=None)
+        model = mc.Model(vehicle,mc.smallLayout) 
+
+        self.action_space = gym.spaces.Box(low=-1.,high=1.,shape=(2,),dtype=np.float32)
+        xHigh = np.array([2.5,2.5,.4,.4])
+        self.observation_space = gym.spaces.Box(low=-xHigh,high=xHigh,dtype = np.float32)
+
+        dt = 0.05
+        super().__init__(model,dt)
+            
+    def initialize_state(self):
+        
+        pos = 5 * (rnd.rand(2) - .5)
+        while np.max(np.abs(pos)) < 1.5:
+            pos = 5 * (rnd.rand(2) - .5)
+        vel = np.zeros(2)
+        self.x0 = np.hstack([pos,vel])
+
+class constrainedCar(minecraftEnvironment):
+    def __init__(self):
+        gain = 0.1
+        vehicle = vh.car((0,-1,0),np.pi,1.,gain=gain,controller=None)
+        model = mc.Model(vehicle,mc.smallLayout)
+
+        self.gain = gain
+        dt = 0.05
+
+        
+        uLow = np.array([-1,-1.])
+        uHigh = np.array([1.,1.])
+        self.action_space = gym.spaces.Box(low=uLow,high=uHigh,dtype = np.float32)
+
+        xHigh = np.array([2.5,2.5,np.inf,2.,2.])
+        xLow = np.array([-2.5,-2.5,-np.inf,-2.,-2.])
+        self.observation_space = gym.spaces.Box(low=xLow,high=xHigh,dtype=np.float32)
+        super().__init__(model,dt)
+    
+    def initialize_state(self):
+
+        pos = 5 * (rnd.rand(2) - .5)
+        while np.max(np.abs(pos)) < 1.5:
+            pos = 5 * (rnd.rand(2) - .5)
+
+        theta = 2*np.pi*rnd.rand()
+        self.x0 = np.hstack([pos,theta,np.zeros(2)])
+
+class constrainedQuadcopter(minecraftEnvironment):
+    def __init__(self):
+        dt = .05
+
+        layout = mc.smallLayout
+        vehicle = vh.quadcopter((0.,0,1),controller=None)
+        model = mc.Model(vehicle,layout)
+        
+        super().__init__(model,dt)
