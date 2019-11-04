@@ -57,7 +57,9 @@ class mcAgent:
             self.update_q()
             self.resetLists()
             
-        
+
+            
+            
 class piAgent(mcAgent):
     def __init__(self,env,gamma=1.,epsilon=0.01):
         super().__init__(env,gamma,epsilon)
@@ -151,3 +153,58 @@ class piAgent(mcAgent):
                 self.updateModel()
                 self.policyIteration()
             self.resetLists()
+
+class qAgent:
+    def __init__(self,env,gamma=1.,epsilon=0.01,alpha = 1e-3):
+        self.env = env
+        
+        self.epsilon = epsilon
+        self.alpha = alpha
+        self.gamma = gamma
+        self.terminalStates = []
+    
+        self.reset()
+        
+    def reset(self):
+        self.q = np.zeros((self.env.observation_space.n,self.env.action_space.n))
+        self.counts = np.ones_like(self.q)
+        
+       
+        
+    def action(self,s):
+        if rnd.rand() < self.epsilon:
+            a = self.env.action_space.sample()
+        else:
+            a = np.argmax(self.q[s,:])
+        return a
+    
+    def update_q(self,s,a,r,s_next):
+
+        Q_next = np.max(self.q[s_next,:])
+        self.counts[s,a] = self.counts[s,a] + 1
+        c = self.counts[s,a]
+        alpha = self.alpha
+        alpha = (100./(1000+c))**.7
+        
+        delta = r + self.gamma * Q_next - self.q[s,a]
+        q_new = self.q[s,a] + alpha * delta 
+        self.q[s,a] = q_new 
+        
+                 
+    
+    def update(self,s,a,r,s_next,done,info):
+        TimeLimitReached = False
+        if 'TimeLimit.truncated' in info.keys():
+            if info['TimeLimit.truncated'] == True:
+                TimeLimitReached = True
+        #if done:
+        #    if not TimeLimitReached:
+        #        if s_next not in self.terminalStates:
+        #            self.terminalStates.append(s_next)
+        #            self.q[s_next] = np.zeros_like(self.q[s_next])
+
+        
+        self.update_q(s,a,r,s_next)
+
+        
+
