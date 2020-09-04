@@ -9,14 +9,14 @@ This is the code for EE5940, Optimal Control and Reinforcement Learning.
 
 * [git](https://git-scm.com/) - For managing code. If you use a Mac or Linux, you probably have it.
 
-* [anaconda 3.7](https://www.anaconda.com/download/) - For code. There are two versions on the webpage, 2.7 and 3.7. This class uses 3.6. (If you already have a working Python 3 installation, you won't need this. However, you will need `jupyter`, `numpy`, `scipy`, `matplotlib`)
+* [anaconda 3.8](https://www.anaconda.com/download/) - For code. (If you already have a working Python 3 installation, you won't need this. However, you will need `jupyter`, `numpy`, `scipy`, `matplotlib`)
 
 * A few Python libraries. Anaconda has most of what we need. The rest can be installed in the command line 
 
 ```
 pip3 install pyglet
 pip3 install cvxpy
-pip3 install tensorflow
+pip3 install torch
 pip3 install casadi
 ```
 
