@@ -68,5 +68,5 @@ This will open up a browser tab/window. Click on the filename and follow the ins
 
 # Turning in the Homework
 
-The notebooks will be uploaded to Canvas. Please download the file from your computer's file manager. Do not use "Save Link As" from the browser. This gives the HTML file rendered in the, rather than the notebook file, which contains the code.
+The notebooks will be uploaded to Canvas. Please download the file from your computer's file manager. Do not use "Save Link As" from the browser. This gives the HTML file which is displayed in the browser, rather than the notebook file, which contains the code.
 
