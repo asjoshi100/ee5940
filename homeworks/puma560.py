@@ -9,7 +9,7 @@ def rodrigues(v,theta):
     # v is a unit vector
     v_hat = crossMat(v)
     
-    return np.eye(3) + np.sin(theta)*v_hat + (1-np.cos(theta))*(v_hat@v_hat)
+    return np.eye(3) + np.sin(theta)*v_hat + (1-np.cos(theta))*(v_hat@v_hat
 
 def rotationSE3(v,theta):
     #Omega = crossMat(omega)
@@ -36,6 +36,13 @@ def Revolute(d=0,a=0,alpha=0,offset=0.):
     def jointMat(theta):
         return DHMat(theta+offset,d,a,alpha)
     return jointMat
+
+def DHMat_angle_vjp(theta,d,a,alpha):
+    M = DHMat(theta,d,a,alpha)
+    Omega = crossMat([0,0,theta])
+    DMat = np.block([[Omega,np.zeros((3,1))],
+                     [np.zeros((1,4))]])
+    return 
 
 class SerialLink:
     def __init__(self,ListOfLinks,base=None,tool=None):
