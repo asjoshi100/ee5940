@@ -11,7 +11,7 @@ def rodrigues(v,theta):
     # v is a unit vector
     v_hat = crossMat(v)
     
-    return pt.eye(3) + pt.sin(theta)*v_hat + (1-pt.cos(theta))*(v_hat@v_hat)
+    return pt.eye(3,dtype=v.dtype) + pt.sin(theta)*v_hat + (1-pt.cos(theta))*(v_hat@v_hat)
 
 def toSE3(R,p):
     M_top = pt.cat([R,p.view((3,1))],dim=1)
