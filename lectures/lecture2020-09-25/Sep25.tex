@@ -1,0 +1,87 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\title{September 25th Notes}
+\author{Carter Blum}
+\date{October 2020}
+
+\newenvironment{parboxed}
+    {\begin{center}
+    \begin{tabular}{|p{0.9\textwidth}|}
+    \hline\\
+    }
+    { 
+    \\\\\hline
+    \end{tabular} 
+    \end{center}
+    }
+    
+\newcommand{\mat}[1]{\begin{bmatrix} #1 \end{bmatrix}}
+
+
+\begin{document}
+
+\maketitle
+
+\textbf{Big Idea: } Reach a goal while always satisfying constraints
+
+\begin{parboxed}
+\emph{Example} : Driving a car is constrained by the following:\\
+\begin{center}
+    $\cdot$ speed $\cdot$ steering angles $\cdot$ road limits (hopefully)
+\end{center}
+\end{parboxed}
+
+In general, our goal will be to get to the origin \& stay there (we can always call our goal the origin by re-centering values. Staying at the origin entails ensuring stability there).\\
+
+One strategy is to plan out our trajectory $N$ steps in the future, then execute the first control $u$ in that trajectory (then we repeat this process until we reach a desired state). 
+This framework is broadly referred to as \textbf{\underline{Model Predictive Control}}.
+
+Formally, for a given $x$, we solve 
+
+$$\mathbb{P}_N = \min_u \sum_{i=0}^{N-1} l(x_i, u_i) + V_f(x_N)$$
+\begin{equation*}
+\begin{split}
+        \textrm{s. t. } & x_0 = x\\
+    (1) \quad & x_{i+1} = f(x_i, u_i)\\
+    (2) \quad & (x_i, u_i) \in \mathbb{Z}\\
+    (3) \quad & x_N \in \mathbb{X}_f
+\end{split}
+\end{equation*}
+
+Where (1) represents the dynamics of the systems and (2) and (3) represent the additional constraints. $\mathbb{Z}$ here represents a set of acceptable values, not the set of integers.
+The last constraint is usually for analytic purposes (e.g. stability guaranteed in that region, or its a region of attraction where we can easily apply LQR).
+Here, $V_f$ is the ``Lyapunov Control Function".
+
+\begin{parboxed}
+\emph{Example} : Say $u:=kx$ with $|u| \leq 1$ as a constraint.
+Then the above definition of $u$ will clearly violate the constraint for large values of $x$ - but we know that there is some region where $\|x\|$ is small so that the control is safe.
+\end{parboxed}
+
+Let $u^*(x) = \Big(u^*(0,x), ..., u^*(N-1,x)\Big)$ be an optimal input sequence for $\mathbb{P}_N(x)$. We will then set $u = u^*(0,x)=:\kappa(x)$.
+You then plug in $x_{t+1} = f(x, u)$ as our new $x$ and repeat. 
+This process can be really slow - it was originally meant for very slow-changing processes. 
+Nowadays however, computers are extremely fast, so it has been sped up a lot.
+Some sources of improvement are the following:
+
+\begin{itemize}
+    \item Specialized hardware 
+    \item Only $x$ actually changes at each iteration
+    \item $x$ typically changes quite minimally each iteration
+    \item A lot of the past trajectory can be reused
+    \item Common to stop planning early
+\end{itemize}
+
+One final thing to note: future constraints often depend on past decisions and values.
+
+\begin{parboxed}
+\emph{Example: } Consider an example where we're controlling a robotic arm. Let
+$$x_t = \mat{\theta_t \\ \omega_t}$$
+$$x_{t+1} = x_t + h\mat{\omega_t \\ \frac{u_t}{m}}$$
+where $m$ is the mass. Let's say that we have constraints that $|\theta|\leq 5$ and $|u|\leq 1$, which correspond to the notions that the arm can only bend to certain angles and the robot can only exert so much force.
+Then, for some initial state (like when $\omega$ is very large), it might be impossible to fulfil the constraints for all $t$.
+It's also possible to encounter problems where the robot may need to start exerting force very early to slow down the angular momentum.
+Failure to do so might result in later constraints being unsatisfied.
+\end{parboxed}
+\end{document}

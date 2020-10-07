@@ -1,0 +1,80 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+
+\title{Lecture 3: EE594}
+\author{{Andrew Lamperski},{Arpan Chatterjee}}
+\date{$16^{th}$  September 2020}
+
+\usepackage{natbib}
+\usepackage{graphicx}
+
+\begin{document}
+\maketitle
+
+\section{LQR (finite time horizon):}
+Let's recall the LQR problem from the last class. In LQR the idea is to minimize the cost function shown below.
+\begin{equation}
+    min_{u}  \int_{0}^{t_{f}} (X_{t}^T Q X_{t} + U_{t}^T R U_{t}) dt  + X_{t_{f}}^T S_{t_{f}}^{t_{f}} X_{t_{f}} 
+\end{equation}
+Let us take a system $\dot X(t) = AX(t) +BU(t)$. The value function is given by:
+\begin{equation}
+    V(t,X) = min_{u}  \int_{t}^{t_{f}} (X_{\tau}^T Q X_{\tau} + U_{\tau}^T R U_{\tau}) d\tau  + X_{t_{f}}^T S_{t_{f}}^{t_{f}} X_{t_{f}}
+\end{equation}
+The value function is defined using the Hamilton Jacobian Bellman PDE and in this particular scenario it becomes: 
+\begin{equation}
+    \frac{-dV(t,X)}{dt} = min_{u} (X_{\tau}^T Q X_{\tau} + U_{\tau}^T R U_{\tau}  + \frac{dV}{dX}(AX+BU))
+\end{equation}
+We solve this for $U$ and that would give us the optimal control input. Easiest way to do it is Guess and check. We assume that $V(t_{t},X)= X^{T}S_{t_{f}}^{t_{f}}X$ as the integral becomes 0 at the final time and there are no decisions to make. There is only one solution to this PDE.We will guess that $V(t,X)= X^{T}S_{t_{f}}^{t_{f}}X$ for some $S_{t_{f}}^{t_{f}}$ where it is positive semi-definite and symmetric.
+
+\begin{equation}
+    -X^{T}\frac{d S_{t}^{t_{f}}}{dt}X = X^{T}(Q+ A^{T}S{t}^{t_{f}} + S_{t}^{t_{f}}A - S_{t}^{t_{f}}BR^{-1}B^{T}S_{t}^{t_{f}})X
+\end{equation}
+    
+\begin{equation}
+     \frac{d S_{t}^{t_{f}}}{dt} = Q+ A^{T}S{t}^{t_{f}} + S_{t}^{t_{f}}A - S_{t}^{t_{f}}BR^{-1}B^{T}S_{t}^{t_{f}}
+\end{equation}
+
+The optimal control input comes out to be $U(t) = -R^{-1}B^{T}S_{t}^{t_{f}}X(t)$
+You have to first compute $S_{t}^{t_{f}}$ backwards from $t_{f}$ to 0 and then simulate the system forward in time using $U(t) = -R^{-1}B^{T}S_{t}^{t_{f}}X(t)$
+
+\section{Infinite Horizon Case:}
+In infinite horizon case the problem translates to evaluating the cost function over an infinite time range. It leads to solving $ min_{u}  \int_{0}^{\infty} (X_{t}^T Q X_{t} + U_{t}^T R U_{t}) dt$.
+
+Some of the questions we would be wondering is whether the integral is finite and how do we go about minimizing it.In this case when the solution exists it is simpler and less computationally expensive than finite horizon case.
+
+Let us take a linear system $\dot X(t) = AX(t) + BU(t)$. This system is stabilizable if there exists a gain H such that when $U(t) = HX(t)$ all trajectory $X(t)$ converge to 0 exponentially. In this case$\dot X(t) = (A+BH)X(t)$ needs to exponentially converge and all eigen values of $A+BH$ have negative real part. If $H$ exists then we can say that :
+\begin{equation}
+    min_{U} \int_{0}^{\infty}(X_t^{T}QX_t + U_t^{T}RU_t)dt \leq \int_{0}^{\infty}(\hat X_t^{T}Q\hat X_t + \hat U_t^{T}R\hat U_t)dt < \infty 
+\end{equation}
+where  $\dot {\hat X(t)} = (A+BH)\hat X(t)$. Since the trajectory converges we can say that it would be less than $\infty$.We could also deduce that:
+\begin{equation}
+    min_{U} \int_{0}^{t_f}(X_t^{T}QX_t + U_t^{T}RU_t)dt \leq min_{U} \int_{0}^{\infty}(X_t^{T}QX_t + U_t^{T}RU_t)dt
+\end{equation}
+$min_{U} \int_{0}^{t_f}(X_t^{T}QX_t + U_t^{T}RU_t)dt$ corresponds to the case when $S_{t_f}^{t_f} = 0$. The $V(0,X)$ is the total optimal cost of the final horizon controller. The optimal cost is $X^{T}S_0^{t_f}$X and we can say that the optimal cost will be less than $\infty$. With the same logic we can say that cost function for a finite horizon case with bounds $[0,t_f+h]$ will always be $\geq$ the cost function with bounds $[0,t]$.
+\begin{equation}
+    min_{U} \int_{0}^{t_f}(X_t^{T}QX_t + U_t^{T}RU_t)dt \leq min_{U} \int_{0}^{t_f+h}(X_t^{T}QX_t + U_t^{T}RU_t)dt
+\end{equation}
+\begin{equation}
+    min_{U} \int_{0}^{t_f}(X_t^{T}QX_t + U_t^{T}RU_t)dt = X_tS_0^{t_f}X
+\end{equation}
+\begin{equation}
+    min_{U} \int_{0}^{t_f+h}(X_t^{T}QX_t + U_t^{T}RU_t)dt = X_tS_0^{t_f+h}X
+\end{equation}
+We have been able to show that :
+\begin{equation}
+    0 \leq X_tS_0^{t_f}X \leq X_tS_0^{t_f}X \leq \int_{0}^{\infty}(\hat X_t^{T}Q\hat X_t + \hat U_t^{T}R\hat U_t)dt
+\end{equation}
+We can conclude that $\lim_{t \to +\infty} X^{T}S_0^{t}X$ approaches some value that is at most $\int_{0}^{\infty}(\hat X_t^{T}Q\hat X_t + \hat U_t^{T}R\hat U_t)dt$. Essentially we can show that $\lim_{t \to +\infty} S_0^{t} = S$ , $S$ is some fixed matrix. We can get this using the polarizing technique.Thus we can say that:
+\begin{equation}
+    \lim_{t_f \to +\infty} S_t^{t_f} = \lim_{t_f \to +\infty} S_0^{t_f-t} =S
+\end{equation}
+This shows when $t_f>>t$ $S_t^{t_f}$ is nearly constant and hence we can modify the differential Riccati equation to an algebric riccati equation:
+\begin{equation}
+    Q + A^{T}S + SA - SBR^{-1}B^{T}S
+\end{equation}
+And the optimal input is $U{t} = -R^{-1}B^{T}SX_t$. Now if we use this input we must have $\int_{0}^{\infty}(X_t^{T}QX_t + U_t^{T}RU_t)dt < \infty$. Under suitable conditions this implies that $X_t \to 0$ exponentially. This is a simple sufficient condition with $Q$ being positive semi-definite.We have showed that if you take the regulator problem and let the horizon to to infinity under mild assumptions it would give you a stabilizing controller.
+
+
+\bibliographystyle{plain}
+
+\end{document}
